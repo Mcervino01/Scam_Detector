@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id              String           @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name            String
+  accessToken     String           @unique
+  passcodeHash    String?
+  isActive        Boolean          @default(true)
+  monthlyQuota    Int              @default(100)
+  quotaUsed       Int              @default(0)
+  quotaResetAt    DateTime?
+  settings        Json             @default("{}")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @default(now()) @updatedAt
+  analyticsEvents AnalyticsEvent[]
+  conversations   Conversation[]
+
+  @@index([accessToken])
+  @@index([isActive])
+}
+
+model AdminUser {
+  id           String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  @@index([email])
+}
+
+model Conversation {
+  id        String             @id @default(dbgenerated("(gen_random_uuid())::text"))
+  clientId  String
+  sessionId String
+  status    ConversationStatus @default(ACTIVE)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @default(now()) @updatedAt
+  analyses  Analysis[]
+  client    Client             @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@index([clientId])
+  @@index([sessionId])
+  @@index([createdAt])
+}
+
+model Message {
+  id             String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  conversationId String
+  role           MessageRole
+  content        String
+  contentType    ContentType  @default(TEXT)
+  attachments    Json?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+}
+
+model Analysis {
+  id               String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  conversationId   String
+  inputType        InputType
+  inputContent     String
+  inputHash        String
+  riskScore        Int
+  riskLevel        RiskLevel
+  confidence       Float
+  scamType         ScamType?
+  scamSubType      String?
+  aiAnalysis       Json
+  threatIntel      Json?
+  urlAnalysis      Json?
+  indicators       Json
+  recommendation   String
+  actions          Json
+  processingTimeMs Int?
+  aiModelUsed      String?
+  aiTokensUsed     Int?
+  userFeedback     FeedbackType?
+  feedbackComment  String?
+  status           AnalysisStatus @default(PENDING)
+  createdAt        DateTime       @default(now())
+  completedAt      DateTime?
+  conversation     Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([inputHash])
+  @@index([riskLevel])
+  @@index([scamType])
+  @@index([createdAt])
+}
+
+model ThreatCache {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  lookupType  String
+  lookupValue String
+  lookupHash  String   @unique
+  source      String
+  result      Json
+  isThreat    Boolean
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  @@index([lookupHash])
+  @@index([expiresAt])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  clientId  String
+  eventType String
+  eventData Json
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, eventType])
+  @@index([createdAt])
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum ContentType {
+  TEXT
+  IMAGE
+  URL
+  EMAIL
+  QR_CODE
+}
+
+enum InputType {
+  TEXT
+  URL
+  IMAGE
+  EMAIL
+  QR_CODE
+}
+
+enum RiskLevel {
+  SAFE
+  LOW_RISK
+  SUSPICIOUS
+  LIKELY_SCAM
+  CONFIRMED_SCAM
+}
+
+enum ScamType {
+  PHISHING
+  ADVANCE_FEE
+  ROMANCE
+  TECH_SUPPORT
+  INVESTMENT
+  LOTTERY
+  IMPERSONATION
+  EMPLOYMENT
+  CRYPTO
+  SHOPPING
+  CHARITY
+  GOVERNMENT
+  SUBSCRIPTION
+  SMS_SMISHING
+  SOCIAL_ENGINEERING
+  MALWARE
+  OTHER
+}
+
+enum AnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CACHED
+}
+
+enum FeedbackType {
+  HELPFUL
+  NOT_HELPFUL
+  FALSE_POSITIVE
+  FALSE_NEGATIVE
+}
