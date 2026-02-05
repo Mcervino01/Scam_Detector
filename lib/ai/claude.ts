@@ -8,12 +8,16 @@ import {
 } from "./prompts";
 import { parseAnalysisResponse, type AnalysisResult } from "./parser";
 
-const MODEL = "claude-sonnet-4-5-20250514";
+const MODEL = "claude-sonnet-4-5-20250929";
 
 function getClient() {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  // Use SCAMSHIELD_ANTHROPIC_KEY first, fall back to ANTHROPIC_API_KEY
+  // (ANTHROPIC_API_KEY may be overridden by Claude Code's own env)
+  const apiKey = process.env.SCAMSHIELD_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY environment variable is not set");
+    throw new Error(
+      "Anthropic API key not set. Set SCAMSHIELD_ANTHROPIC_KEY or ANTHROPIC_API_KEY in .env.local"
+    );
   }
   return new Anthropic({ apiKey });
 }
